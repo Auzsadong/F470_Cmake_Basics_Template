@@ -51,7 +51,7 @@ void Jump_To_App(void) {
     uint32_t msp_val = *(__IO uint32_t*)APP_START_ADDR;
     uint32_t jump_addr = *(__IO uint32_t*)(APP_START_ADDR + 4);
 
-    if ((msp_val & 0x2FFE0000) == 0x20000000) {
+    if ((msp_val & 0xFF000000) == 0x20000000) {
         UART_SendString("[BOOT] Valid App found! Jumping to 0x08010000...\r\n");
         delay_1ms(20);
 
