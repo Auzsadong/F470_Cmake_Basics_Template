@@ -13,27 +13,36 @@ void BSP_Flash_Init(void) {
  * @brief 擦除 App 所在的 Flash 区域
  * @return 0: 成功, 1: 失败
  */
+/**
+ * @brief 擦除 App 所在的 Flash 区域
+ * @return 0: 成功, 1: 失败
+ */
 uint8_t BSP_Flash_EraseAppArea(void) {
     fmc_state_enum fmc_state = FMC_READY;
-    
+
+    // 这里的 printf 如果报错未定义，可以换成你 main.c 里的 UART_SendString
+    // 不过看你的日志，printf 是可以正常打印的
     printf("[FLASH] Unlocking Flash...\r\n");
     fmc_unlock(); // 1. 解锁 Flash 控制寄存器
 
     /* 2. 清除所有错误标志位 */
     fmc_flag_clear(FMC_FLAG_END | FMC_FLAG_OPERR | FMC_FLAG_WPERR | FMC_FLAG_PGMERR | FMC_FLAG_PGSERR);
 
-    printf("[FLASH] Erasing App Sectors (Starting from Sector 4)...\r\n");
-    
-    /* 3. 逐个擦除 Sector 
-     * GD32F470 (512KB版本): 
-     * Sector 0~3 (各16KB) = 0x08000000 ~ 0x0800FFFF (Bootloader)
-     * Sector 4 (64KB)     = 0x08010000 ~ 0x0801FFFF
-     * Sector 5~7 (各128KB) = 0x08020000 ~ 0x0807FFFF
-     */
-    for (uint32_t sector = FLASH_APP_START_SECTOR; sector <= CTL_SECTOR_NUMBER_7; sector++) {
-        fmc_state = fmc_sector_erase(sector);
+    printf("[FLASH] Erasing App Sectors (4 to 7)...\r\n");
+
+    /* 3. 使用数组遍历，避开 GD32 宏定义不连续的陷阱 */
+    uint32_t app_sectors[] = {
+        CTL_SECTOR_NUMBER_4,  // 64KB (0x08010000 - 0x0801FFFF)
+        CTL_SECTOR_NUMBER_5,  // 128KB (0x08020000 - 0x0803FFFF)
+        CTL_SECTOR_NUMBER_6,  // 128KB (0x08040000 - 0x0805FFFF)
+        CTL_SECTOR_NUMBER_7   // 128KB (0x08060000 - 0x0807FFFF)
+    };
+
+    // 对于 512KB 版本的 GD32F470，App 占用了扇区 4, 5, 6, 7
+    for (int i = 0; i < 4; i++) {
+        fmc_state = fmc_sector_erase(app_sectors[i]);
         if (fmc_state != FMC_READY) {
-            printf("[FLASH] Error: Erase failed at Sector %lu\r\n", sector);
+            printf("[FLASH] Error: Erase failed at Sector %d\r\n", i + 4);
             fmc_lock();
             return 1; // 擦除失败
         }

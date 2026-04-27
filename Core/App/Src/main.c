@@ -86,7 +86,7 @@ void Enter_Update_Mode(void) {
     UART_SendString("\r\n=================================\r\n");
     UART_SendString("   Entering XCOM RAW Update Mode \r\n");
     UART_SendString("=================================\r\n");
-    UART_SendString("[BOOT] Please use XCOM: [单条发送] -> [打开文件] -> [发送文件] (.bin)\r\n");
+    UART_SendString("[BOOT] Please use XCOM: [Single Send] -> [Open File] -> [Send File] (.bin)\r\n");
 
     uint32_t app_rx_length = 0;
     uint8_t receiving = 0;
