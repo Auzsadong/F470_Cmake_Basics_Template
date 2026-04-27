@@ -88,40 +88,34 @@ void Enter_Update_Mode(void) {
     UART_SendString("=================================\r\n");
     UART_SendString("[BOOT] Please use XCOM: [Single Send] -> [Open File] -> [Send File] (.bin)\r\n");
 
+    // 【修改点】：把提示语提前打印出来，进入循环后保持绝对静默！
+    UART_SendString("[BOOT] Waiting for XCOM data stream...\r\n");
+
     uint32_t app_rx_length = 0;
     uint8_t receiving = 0;
     uint32_t timeout_counter = 0;
 
-    /* * 超时阈值：纯粹依靠 CPU 空转计数。
-     * GD32F4 在 240MHz 下，这个值大约对应 0.5 到 1 秒的数据断流空闲。
-     * 如果你发现文件还没发完就提前结束了，可以把这个值再调大 10 倍。
-     */
-    #define TIMEOUT_THRESHOLD 20000000
+#define TIMEOUT_THRESHOLD 20000000
 
-    /* 接收循环 */
+    /* 接收循环：此处必须极速轮询，严禁添加任何 printf 或 SendString */
     while(1) {
         // 1. 如果串口有数据进来
         if (usart_flag_get(USART0, USART_FLAG_RBNE) != RESET) {
             uint8_t c = (uint8_t)usart_data_receive(USART0);
 
-            // 塞入大数组，并防止越界崩溃
+            // 塞入大数组
             if (app_rx_length < MAX_APP_SIZE) {
                 app_buffer[app_rx_length++] = c;
             }
 
             timeout_counter = 0; // 只要收到数据，就把超时计数器清零
-
-            if(!receiving) {
-                receiving = 1;
-                UART_SendString("\r\n[BOOT] Receiving Data from XCOM... Please wait!\r\n");
-            }
+            receiving = 1;       // 标记开始接收 (绝对不要在这里加打印)
         }
         // 2. 如果串口当前空闲
         else {
-            // 如果已经开始接收了，就开始疯狂累加超时计数器
             if (receiving) {
                 timeout_counter++;
-                // 如果足够长的时间没有新数据进来，判定为文件发送结束！
+                // 足够长时间没有新数据，判定为发送结束！
                 if (timeout_counter > TIMEOUT_THRESHOLD) {
                     break;
                 }
