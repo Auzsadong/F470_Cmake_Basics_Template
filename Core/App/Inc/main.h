@@ -18,7 +18,7 @@
 #include <stdint.h>
 #include "string.h"
 #include "../../Bsp/bsp_led.h"
-
+#include "bsp_uart.h"
 #endif
 
 /****************************End*****************************/

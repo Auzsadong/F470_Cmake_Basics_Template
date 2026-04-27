@@ -2,49 +2,13 @@
 ******************************************************************************
 **
 
-**  File        : LinkerScript.ld
+** File        : LinkerScript.ld
 **
-**  Author		: STM32CubeMX
+** Author     : STM32CubeMX / Modified for App with Bootloader
 **
-**  Abstract    : Linker script for STM32F407VETx series
-**                512Kbytes FLASH and 192Kbytes RAM
-**
-**                Set heap size, stack size and stack location according
-**                to application requirements.
-**
-**                Set memory bank area and size if external memory is used.
-**
-**  Target      : STMicroelectronics STM32
-**
-**  Distribution: The file is distributed “as is,” without any warranty
-**                of any kind.
-**
-*****************************************************************************
-** @attention
-**
-** <h2><center>&copy; COPYRIGHT(c) 2025 STMicroelectronics</center></h2>
-**
-** Redistribution and use in source and binary forms, with or without modification,
-** are permitted provided that the following conditions are met:
-**   1. Redistributions of source code must retain the above copyright notice,
-**      this list of conditions and the following disclaimer.
-**   2. Redistributions in binary form must reproduce the above copyright notice,
-**      this list of conditions and the following disclaimer in the documentation
-**      and/or other materials provided with the distribution.
-**   3. Neither the name of STMicroelectronics nor the names of its contributors
-**      may be used to endorse or promote products derived from this software
-**      without specific prior written permission.
-**
-** THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-** AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-** IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-** DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-** FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-** DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-** SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-** CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-** OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-** OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+** Abstract    : Linker script for GD32F470VET6 / STM32F407VETx series
+** App Flash Start: 0x08010000 (64KB reserved for Bootloader)
+** 448Kbytes FLASH and 192Kbytes RAM
 **
 *****************************************************************************
 */
@@ -60,10 +24,15 @@ MEMORY
   RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 192K
   /* TCMSRAM (对应 STM32 的 CCMRAM 区域) */
   CCMRAM (xrw)   : ORIGIN = 0x10000000, LENGTH = 64K
-  FLASH (rx)     : ORIGIN = 0x08000000, LENGTH = 512K
+
+  /* ======== 核心修改位置 ======== */
+  /* 原本为: ORIGIN = 0x08000000, LENGTH = 512K */
+  /* 现在为 App 预留了 64KB 的 Bootloader 空间 */
+  FLASH (rx)     : ORIGIN = 0x08010000, LENGTH = 448K
+  /* ============================== */
 }
 
-/* 堆栈顶地址更新 [cite: 13] */
+/* 堆栈顶地址更新 */
 _estack = ORIGIN(RAM) + LENGTH(RAM);
 /* Generate a link error if heap and stack don't fit into RAM */
 _Min_Heap_Size = 0x200;      /* required amount of heap  */
@@ -106,14 +75,14 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
-  .ARM.extab (READONLY) : /* The "READONLY" keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
+  .ARM.extab (READONLY) :
   {
     . = ALIGN(4);
     *(.ARM.extab* .gnu.linkonce.armextab.*)
     . = ALIGN(4);
   } >FLASH
 
-  .ARM (READONLY) : /* The "READONLY" keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
+  .ARM (READONLY) :
   {
     . = ALIGN(4);
     __exidx_start = .;
@@ -122,7 +91,7 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
-  .preinit_array (READONLY) : /* The "READONLY" keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
+  .preinit_array (READONLY) :
   {
     . = ALIGN(4);
     PROVIDE_HIDDEN (__preinit_array_start = .);
@@ -131,7 +100,7 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
-  .init_array (READONLY) : /* The "READONLY" keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
+  .init_array (READONLY) :
   {
     . = ALIGN(4);
     PROVIDE_HIDDEN (__init_array_start = .);
@@ -141,7 +110,7 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
-  .fini_array (READONLY) : /* The "READONLY" keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
+  .fini_array (READONLY) :
   {
     . = ALIGN(4);
     PROVIDE_HIDDEN (__fini_array_start = .);
@@ -153,12 +122,6 @@ SECTIONS
 
   _siccmram = LOADADDR(.ccmram);
 
-  /* CCM-RAM section
-  *
-  * IMPORTANT NOTE!
-  * If initialized variables will be placed in this section,
-  * the startup code needs to be modified to copy the init-values.
-  */
   .ccmram :
   {
     . = ALIGN(4);
@@ -209,10 +172,10 @@ SECTIONS
   PROVIDE( __data_source = LOADADDR(.data) );
   PROVIDE( __data_source_end = __tdata_source_end );
   PROVIDE( __data_source_size = __data_source_end - __data_source );
+
   /* Uninitialized data section */
   .tbss (NOLOAD) : ALIGN(4)
   {
-     /* This is used by the startup in order to initialize the .bss secion */
     _sbss = .;         /* define a global symbol at bss start */
     __bss_start__ = _sbss;
     *(.tbss .tbss.*)
@@ -259,8 +222,6 @@ SECTIONS
     . = ALIGN(8);
   } >RAM
 
-
-
   /* Remove information from the standard libraries */
   /DISCARD/ :
   {
@@ -268,5 +229,4 @@ SECTIONS
     libm.a:* ( * )
     libgcc.a:* ( * )
   }
-
 }

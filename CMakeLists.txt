@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 # 1. 设置项目名称
-set(CMAKE_PROJECT_NAME F470_Cmake_Basics_Template)
+set(CMAKE_PROJECT_NAME F470_Cmake_Bootloader)
 project(${CMAKE_PROJECT_NAME} C ASM)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
@@ -10,7 +10,9 @@ set(CMAKE_C_STANDARD 11)
 # 2. 【关键修复】在此处定义目标
 # 只有先执行了这一行，后面的 target_include_directories 才能找到对象
 add_executable(${CMAKE_PROJECT_NAME}
-       )
+        Core/Bsp/bsp_uart.c
+        Core/Bsp/bsp_uart.h
+)
 
 # 3. 宏定义
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
