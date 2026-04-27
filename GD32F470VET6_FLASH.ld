@@ -1,16 +1,13 @@
 /*
 ******************************************************************************
 **
-
-** File        : LinkerScript.ld
+** File        : GD32F470VET6_Bootloader.ld
 **
-** Author     : STM32CubeMX / Modified for App with Bootloader
+** Abstract    : Corrected Linker script for GD32F470VET6 Bootloader.
+** Bootloader starts at 0x08000000.
+** Reserved space: 64 Kbytes.
 **
-** Abstract    : Linker script for GD32F470VET6 / STM32F407VETx series
-** App Flash Start: 0x08010000 (64KB reserved for Bootloader)
-** 448Kbytes FLASH and 192Kbytes RAM
-**
-*****************************************************************************
+******************************************************************************
 */
 
 /* Entry Point */
@@ -19,24 +16,26 @@ ENTRY(Reset_Handler)
 /* Specify the memory areas */
 MEMORY
 {
-  /* GD32F470VET6: 512KB Flash, 256KB Total RAM */
-  /* 主 RAM (SRAM0+SRAM1+SRAM2) */
+  /* GD32F470VET6: 512KB Total Flash, 256KB Total RAM */
+
+  /* Main RAM (SRAM0+SRAM1+SRAM2) */
   RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 192K
-  /* TCMSRAM (对应 STM32 的 CCMRAM 区域) */
+
+  /* TCMSRAM (Compatible with STM32 CCMRAM area) */
   CCMRAM (xrw)   : ORIGIN = 0x10000000, LENGTH = 64K
 
-  /* ======== 核心修改位置 ======== */
-  /* 原本为: ORIGIN = 0x08000000, LENGTH = 512K */
-  /* 现在为 App 预留了 64KB 的 Bootloader 空间 */
-  FLASH (rx)     : ORIGIN = 0x08010000, LENGTH = 448K
-  /* ============================== */
+  /* CRITICAL: Bootloader must start at the beginning of Flash (0x08000000).
+     We limit its length to 64KB so it doesn't overlap with the App (at 0x08010000).
+  */
+  FLASH (rx)     : ORIGIN = 0x08000000, LENGTH = 64K
 }
 
-/* 堆栈顶地址更新 */
-_estack = ORIGIN(RAM) + LENGTH(RAM);
+/* Highest address of the user mode stack */
+_estack = ORIGIN(RAM) + LENGTH(RAM);    /* end of RAM */
+
 /* Generate a link error if heap and stack don't fit into RAM */
 _Min_Heap_Size = 0x200;      /* required amount of heap  */
-_Min_Stack_Size = 0x400; /* required amount of stack */
+_Min_Stack_Size = 0x400;     /* required amount of stack */
 
 /* Define output sections */
 SECTIONS
@@ -75,14 +74,14 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
-  .ARM.extab (READONLY) :
+  .ARM.extab :
   {
     . = ALIGN(4);
     *(.ARM.extab* .gnu.linkonce.armextab.*)
     . = ALIGN(4);
   } >FLASH
 
-  .ARM (READONLY) :
+  .ARM :
   {
     . = ALIGN(4);
     __exidx_start = .;
@@ -91,7 +90,7 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
-  .preinit_array (READONLY) :
+  .preinit_array :
   {
     . = ALIGN(4);
     PROVIDE_HIDDEN (__preinit_array_start = .);
@@ -100,7 +99,7 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
-  .init_array (READONLY) :
+  .init_array :
   {
     . = ALIGN(4);
     PROVIDE_HIDDEN (__init_array_start = .);
@@ -110,7 +109,7 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
-  .fini_array (READONLY) :
+  .fini_array :
   {
     . = ALIGN(4);
     PROVIDE_HIDDEN (__fini_array_start = .);
@@ -119,19 +118,6 @@ SECTIONS
     PROVIDE_HIDDEN (__fini_array_end = .);
     . = ALIGN(4);
   } >FLASH
-
-  _siccmram = LOADADDR(.ccmram);
-
-  .ccmram :
-  {
-    . = ALIGN(4);
-    _sccmram = .;       /* create a global symbol at ccmram start */
-    *(.ccmram)
-    *(.ccmram*)
-
-    . = ALIGN(4);
-    _eccmram = .;       /* create a global symbol at ccmram end */
-  } >CCMRAM AT> FLASH
 
   /* used by the startup to initialize data */
   _sidata = LOADADDR(.data);
@@ -147,72 +133,27 @@ SECTIONS
     *(.RamFunc*)       /* .RamFunc* sections */
 
     . = ALIGN(4);
-  } >RAM AT> FLASH
-
- /* Initialized TLS data section */
-  .tdata : ALIGN(4)
-  {
-    *(.tdata .tdata.* .gnu.linkonce.td.*)
-    . = ALIGN(4);
     _edata = .;        /* define a global symbol at data end */
-    PROVIDE(__data_end = .);
-    PROVIDE(__tdata_end = .);
   } >RAM AT> FLASH
-
-  PROVIDE( __tdata_start = ADDR(.tdata) );
-  PROVIDE( __tdata_size = __tdata_end - __tdata_start );
-
-  PROVIDE( __data_start = ADDR(.data) );
-  PROVIDE( __data_size = __data_end - __data_start );
-
-  PROVIDE( __tdata_source = LOADADDR(.tdata) );
-  PROVIDE( __tdata_source_end = LOADADDR(.tdata) + SIZEOF(.tdata) );
-  PROVIDE( __tdata_source_size = __tdata_source_end - __tdata_source );
-
-  PROVIDE( __data_source = LOADADDR(.data) );
-  PROVIDE( __data_source_end = __tdata_source_end );
-  PROVIDE( __data_source_size = __data_source_end - __data_source );
 
   /* Uninitialized data section */
-  .tbss (NOLOAD) : ALIGN(4)
+  .bss :
   {
+    /* This is used by the startup in order to initialize the .bss section */
+    . = ALIGN(4);
     _sbss = .;         /* define a global symbol at bss start */
     __bss_start__ = _sbss;
-    *(.tbss .tbss.*)
-    . = ALIGN(4);
-    PROVIDE( __tbss_end = . );
-  } >RAM
-
-  PROVIDE( __tbss_start = ADDR(.tbss) );
-  PROVIDE( __tbss_size = __tbss_end - __tbss_start );
-  PROVIDE( __tbss_offset = ADDR(.tbss) - ADDR(.tdata) );
-
-  PROVIDE( __tls_base = __tdata_start );
-  PROVIDE( __tls_end = __tbss_end );
-  PROVIDE( __tls_size = __tls_end - __tls_base );
-  PROVIDE( __tls_align = MAX(ALIGNOF(.tdata), ALIGNOF(.tbss)) );
-  PROVIDE( __tls_size_align = (__tls_size + __tls_align - 1) & ~(__tls_align - 1) );
-  PROVIDE( __arm32_tls_tcb_offset = MAX(8, __tls_align) );
-  PROVIDE( __arm64_tls_tcb_offset = MAX(16, __tls_align) );
-
-  .bss (NOLOAD) : ALIGN(4)
-  {
     *(.bss)
     *(.bss*)
     *(COMMON)
 
-      . = ALIGN(4);
+    . = ALIGN(4);
     _ebss = .;         /* define a global symbol at bss end */
     __bss_end__ = _ebss;
-      PROVIDE( __bss_end = .);
   } >RAM
-  PROVIDE( __non_tls_bss_start = ADDR(.bss) );
-
-  PROVIDE( __bss_start = __tbss_start );
-  PROVIDE( __bss_size = __bss_end - __bss_start );
 
   /* User_heap_stack section, used to check that there is enough RAM left */
-  ._user_heap_stack (NOLOAD) :
+  ._user_heap_stack :
   {
     . = ALIGN(8);
     PROVIDE ( end = . );
@@ -229,4 +170,6 @@ SECTIONS
     libm.a:* ( * )
     libgcc.a:* ( * )
   }
+
+  .ARM.attributes 0 : { *(.ARM.attributes) }
 }

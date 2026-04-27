@@ -12,6 +12,8 @@ set(CMAKE_C_STANDARD 11)
 add_executable(${CMAKE_PROJECT_NAME}
         Core/Bsp/bsp_uart.c
         Core/Bsp/bsp_uart.h
+        Core/Bsp/bsp_flash.c
+        Core/Bsp/bsp_flash.h
 )
 
 # 3. 宏定义
